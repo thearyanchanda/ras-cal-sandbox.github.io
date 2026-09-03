@@ -105,48 +105,67 @@
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXGmCkiGNy_5lqwp8s_zWxTr9b50XvcPzgq9erkwo1beJtUNpxVlZQjeTjMos1nksgSQ/exec";
         let allEntries = [], viewingDate = new Date(), calendarMonthView = new Date();
 
+        // Optimized Launch Sequence: Paint the canvas instantly
         window.addEventListener("DOMContentLoaded", () => {
-            // Check if tracking protection killed GSAP. If it's alive, run the fade.
             if (typeof gsap !== "undefined") {
                 gsap.fromTo(".container", { opacity: 0, y: 15 }, { duration: 0.8, opacity: 1, y: 0, ease: "power2.out" });
             } else {
-                // If blocked, instantly guarantee visibility
                 document.querySelector(".container").style.opacity = "1";
-                console.warn("GSAP script execution was blocked by browser configuration. Defaulting layout to native CSS standard.");
             }
-            fetchEntries();
+            
+            // Prime local textareas immediately before requesting remote data
+            renderCurrentView(true); 
+            
+            // Dispatch cloud sync to a non-blocking background network thread
+            fetchEntriesInBackground();
         });
 
-
-
-        async function fetchEntries() {
+        // Quietly pulls past logs without blocking user input
+        async function fetchEntriesInBackground() {
+            const status = document.getElementById("status");
+            status.innerText = "Syncing with cloud log...";
+            
             try {
                 const res = await fetch(SCRIPT_URL);
                 allEntries = await res.json();
-                renderCurrentView();
+                
+                // Merge data seamlessly once the stream finishes loading
+                renderCurrentView(false);
             } catch (err) {
-                console.error("Could not pull archive streams", err);
-                renderCurrentView();
+                console.warn("Background log sync delayed.", err);
+                status.innerText = "Offline workspace mode active.";
             }
         }
 
-        function renderCurrentView() {
+        function renderCurrentView(isInitialInstantPaint = false) {
             document.getElementById("currentDateLabel").innerText = viewingDate.toLocaleDateString('en-US', {
                 weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
             });
+
             const match = allEntries.find(e => formatKeyMatch(e.date, viewingDate));
+            const status = document.getElementById("status");
+
             if (match) {
                 document.getElementById("cat1").value = match.cat1 || "";
                 document.getElementById("cat2").value = match.cat2 || "";
                 document.getElementById("cat3").value = match.cat3 || "";
-                document.getElementById("status").innerText = "Viewing archived log.";
+                status.innerText = "Viewing archived log.";
             } else {
                 document.getElementById("cat1").value = "";
                 document.getElementById("cat2").value = "";
                 document.getElementById("cat3").value = "";
-                document.getElementById("status").innerText = "New clean canvas entry.";
+                
+                if (isInitialInstantPaint) {
+                    status.innerText = "Ready.";
+                } else {
+                    status.innerText = "New clean canvas entry.";
+                }
             }
-            gsap.fromTo("textarea", { opacity: 0.6 }, { opacity: 1, duration: 0.3 });
+
+            // Only run animations on active page turns, not background refreshes
+            if (!isInitialInstantPaint && typeof gsap !== "undefined") {
+                gsap.fromTo("textarea", { opacity: 0.6 }, { opacity: 1, duration: 0.3 });
+            }
             renderGridCalendar();
         }
 
@@ -163,12 +182,20 @@
         function toggleCalendar() {
             const popover = document.getElementById("calendarPopover");
             if (popover.style.display === "block") {
-                gsap.to(popover, { opacity: 0, y: -10, duration: 0.2, onComplete: () => popover.style.display = "none" });
+                if (typeof gsap !== "undefined") {
+                    gsap.to(popover, { opacity: 0, y: -10, duration: 0.2, onComplete: () => popover.style.display = "none" });
+                } else {
+                    popover.style.display = "none";
+                }
             } else {
                 popover.style.display = "block";
                 calendarMonthView = new Date(viewingDate);
                 renderGridCalendar();
-                gsap.fromTo(popover, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" });
+                if (typeof gsap !== "undefined") {
+                    gsap.fromTo(popover, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" });
+                } else {
+                    popover.style.opacity = "1";
+                }
             }
         }
 
@@ -200,6 +227,7 @@
                 const dayCell = document.createElement("div");
                 dayCell.className = "cal-day"; dayCell.innerText = day;
                 const targetDate = new Date(year, month, day);
+                
                 if (formatKeyMatch(targetDate, viewingDate)) dayCell.classList.add("active");
                 if (allEntries.some(e => formatKeyMatch(e.date, targetDate))) dayCell.classList.add("has-entry");
 
@@ -226,7 +254,8 @@
                     method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ cat1, cat2, cat3, date: viewingDate.toISOString() })
                 });
-                status.style.color = "#006400"; status.innerText = "Entry logged successfully."; fetchEntries();
+                status.style.color = "#006400"; status.innerText = "Entry logged successfully.";
+                fetchEntriesInBackground(); // Silently refresh the storage map
             } catch (error) {
                 status.style.color = "#b22222"; status.innerText = "Error transmitting log connection.";
             } finally { submitBtn.disabled = false; }

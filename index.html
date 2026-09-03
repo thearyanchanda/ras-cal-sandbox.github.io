@@ -103,9 +103,16 @@
         let allEntries = [], viewingDate = new Date(), calendarMonthView = new Date();
 
         window.addEventListener("DOMContentLoaded", () => {
-            gsap.to(".container", { duration: 0.8, opacity: 1, y: 0, ease: "power2.out", startAt: { y: 15 } });
+            // Check if GSAP loaded successfully from the CDN
+            if (typeof gsap !== "undefined") {
+                gsap.to(".container", { duration: 0.8, opacity: 1, y: 0, ease: "power2.out", startAt: { y: 15 } });
+            } else {
+                // Fallback: If GSAP fails, instantly show the app anyway so it's not a white screen
+                document.querySelector(".container").style.opacity = "1";
+            }
             fetchEntries();
         });
+
 
         async function fetchEntries() {
             try {

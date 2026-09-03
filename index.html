@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ras-cal progress tracker</title></title>
-    <!-- Updated, reliable CDN endpoint -->
-    <script src="https://jsdelivr.net"></script>
+    <title>ras</title>
+    <!-- Switched to Cloudflare cdnjs endpoint -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -14,7 +14,6 @@
             display: flex; justify-content: center; align-items: center;
             min-height: 100vh; padding: 40px 20px; -webkit-font-smoothing: antialiased;
         }
-        /* Defaulting to visible (opacity: 1) so it never gets stuck white if blocked */
         .container {
             max-width: 680px; width: 100%; background: #ffffff;
             border: 1px solid #e1e1e1; padding: 60px;

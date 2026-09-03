@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ras-cal progress locker</title>
+    <title>ras</title>
     <!-- Switched from a third-party CDN to a secure, same-origin local asset path -->
     <script src="gsap.js"></script>
     <style>
@@ -22,6 +22,13 @@
         header { margin-bottom: 40px; border-bottom: 1px solid #111111; padding-bottom: 25px; text-align: center; position: relative; }
         h1 { font-size: 2.5rem; font-weight: 400; margin-bottom: 15px; }
         .nav-bar { display: flex; justify-content: center; align-items: center; gap: 20px; font-size: 1.15rem; }
+        .main-loader {
+            display: flex; align-items: center; justify-content: center;
+            min-height: 320px; font-style: italic; font-size: 2rem; color: #666666;
+            letter-spacing: 0.5px;
+        }
+        .main-loader .dots { display: inline-block; width: 1em; text-align: left; }
+        #fieldsWrapper { display: none; }
         #currentDateLabel { font-style: italic; cursor: pointer; padding: 2px 8px; border-bottom: 1px dotted #111111; }
         #currentDateLabel:hover { color: #555555; border-bottom-color: #555555; }
         .nav-btn {
@@ -107,6 +114,8 @@
         </header>
 
         <main>
+            <div class="main-loader" id="mainLoader">loading<span class="dots" id="loadingDots"></span></div>
+            <div id="fieldsWrapper">
             <div class="entry-group">
                 <label for="cat1">exercise</label>
                 <textarea id="cat1" placeholder="What you exercised, personal bests, how it's feeling..."></textarea>
@@ -125,7 +134,7 @@
             </div>
             <div class="entry-group">
                 <div class="toggle-row">
-                    <label class="toggle-label">did you work on fourth and broadway today?</label>
+                    <label class="toggle-label">did you work on fourth and broadway?</label>
                     <div class="toggle-switch" id="fabToggle" onclick="toggleFab()">
                         <div class="toggle-highlight" id="fabHighlight"></div>
                         <span class="toggle-option" id="fabNo">No</span>
@@ -144,6 +153,7 @@
                 <div id="status"></div>
                 <button id="submitBtn" class="primary-btn" onclick="saveData()">Save Entry</button>
             </div>
+            </div>
         </main>
     </div>
 
@@ -151,6 +161,7 @@
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXGmCkiGNy_5lqwp8s_zWxTr9b50XvcPzgq9erkwo1beJtUNpxVlZQjeTjMos1nksgSQ/exec";
         let allEntries = [], viewingDate = new Date(), calendarMonthView = new Date();
         let fabState = false; // false = "No" (cat5 hidden/blank), true = "Yes" (cat5 shown)
+        let dotInterval;
 
         // Optimized Launch Sequence: Paint the canvas instantly
         window.addEventListener("DOMContentLoaded", () => {
@@ -159,6 +170,15 @@
             } else {
                 document.querySelector(".container").style.opacity = "1";
             }
+
+            // Animated "loading..." dots that build up and reset, large and centered
+            // in the fields area, while the date nav/calendar stay fully usable.
+            const dotsLabel = document.getElementById("loadingDots");
+            let dotCount = 0;
+            dotInterval = setInterval(() => {
+                dotCount = (dotCount + 1) % 4;
+                dotsLabel.innerText = ".".repeat(dotCount);
+            }, 350);
 
             updateFabUI(false);
 
@@ -169,10 +189,30 @@
             fetchEntriesInBackground();
         });
 
+        // Swaps the fields-area loader out for the actual entry fields, fading them in
+        function revealContent() {
+            clearInterval(dotInterval);
+            const loader = document.getElementById("mainLoader");
+            const fields = document.getElementById("fieldsWrapper");
+
+            if (typeof gsap === "undefined") {
+                loader.style.display = "none";
+                fields.style.display = "block";
+                return;
+            }
+
+            fields.style.display = "block";
+            gsap.killTweensOf(loader);
+            gsap.killTweensOf(fields);
+
+            const tl = gsap.timeline();
+            tl.to(loader, { opacity: 0, duration: 0.25, ease: "power1.in", onComplete: () => loader.style.display = "none" });
+            tl.fromTo(fields, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.55, ease: "power2.out" }, "-=0.15");
+        }
+
         // Quietly pulls past logs without blocking user input
         async function fetchEntriesInBackground() {
             const status = document.getElementById("status");
-            status.innerText = "Syncing with cloud log...";
 
             try {
                 const res = await fetch(SCRIPT_URL);
@@ -183,6 +223,8 @@
             } catch (err) {
                 console.warn("Background log sync delayed.", err);
                 status.innerText = "Offline workspace mode active.";
+            } finally {
+                revealContent();
             }
         }
 

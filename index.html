@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ras-cal everyday progress tracker</title>
-    <script src="https://cloudflare.com"></script>
+    <title>Today.</title>
+    <!-- Updated, reliable CDN endpoint -->
+    <script src="https://jsdelivr.net"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -13,10 +14,11 @@
             display: flex; justify-content: center; align-items: center;
             min-height: 100vh; padding: 40px 20px; -webkit-font-smoothing: antialiased;
         }
+        /* Defaulting to visible (opacity: 1) so it never gets stuck white if blocked */
         .container {
             max-width: 680px; width: 100%; background: #ffffff;
             border: 1px solid #e1e1e1; padding: 60px;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.02); opacity: 0;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.02); opacity: 1;
         }
         header { margin-bottom: 40px; border-bottom: 1px solid #111111; padding-bottom: 25px; text-align: center; position: relative; }
         h1 { font-size: 2.5rem; font-weight: 400; margin-bottom: 15px; }
@@ -58,6 +60,7 @@
         #status { font-size: 1rem; font-style: italic; color: #666666; }
     </style>
 </head>
+
 <body>
 
     <div class="container">

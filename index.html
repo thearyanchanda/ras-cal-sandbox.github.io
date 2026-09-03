@@ -106,15 +106,17 @@
         let allEntries = [], viewingDate = new Date(), calendarMonthView = new Date();
 
         window.addEventListener("DOMContentLoaded", () => {
-            // Check if GSAP loaded successfully from the CDN
+            // Check if tracking protection killed GSAP. If it's alive, run the fade.
             if (typeof gsap !== "undefined") {
-                gsap.to(".container", { duration: 0.8, opacity: 1, y: 0, ease: "power2.out", startAt: { y: 15 } });
+                gsap.fromTo(".container", { opacity: 0, y: 15 }, { duration: 0.8, opacity: 1, y: 0, ease: "power2.out" });
             } else {
-                // Fallback: If GSAP fails, instantly show the app anyway so it's not a white screen
+                // If blocked, instantly guarantee visibility
                 document.querySelector(".container").style.opacity = "1";
+                console.warn("GSAP script execution was blocked by browser configuration. Defaulting layout to native CSS standard.");
             }
             fetchEntries();
         });
+
 
 
         async function fetchEntries() {

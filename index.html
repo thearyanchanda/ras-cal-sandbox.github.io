@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ras</title>
+    <title>ras-cal progress locker</title>
     <!-- Switched from a third-party CDN to a secure, same-origin local asset path -->
     <script src="gsap.js"></script>
     <style>
@@ -63,8 +63,8 @@
         }
         .toggle-switch {
             position: relative; display: inline-flex; width: 130px; height: 38px;
-            border: 1px solid #111111; cursor: pointer; user-select: none; flex-shrink: 0;
-            background: #ffffff;
+            cursor: pointer; user-select: none; flex-shrink: 0;
+            background: #f0f0f0;
         }
         .toggle-highlight {
             position: absolute; top: 0; left: 0; width: 50%; height: 100%;
@@ -75,6 +75,7 @@
             justify-content: center; font-family: inherit; font-size: 1rem; color: #111111;
             transition: color 0.3s ease;
         }
+        .fab-textarea-wrap { overflow: hidden; height: 0; opacity: 0; }
         #cat5 { margin-top: 14px; }
 
         .footer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 35px; }
@@ -107,19 +108,19 @@
 
         <main>
             <div class="entry-group">
-                <label for="cat1">Exercise</label>
+                <label for="cat1">exercise</label>
                 <textarea id="cat1" placeholder="What you exercised, personal bests, how it's feeling..."></textarea>
             </div>
             <div class="entry-group">
-                <label for="cat2">Nutrition</label>
+                <label for="cat2">nutrition</label>
                 <textarea id="cat2" placeholder="Reflecting on meals, snacks, healthy choices..."></textarea>
             </div>
             <div class="entry-group">
-                <label for="cat3">Make Art</label>
+                <label for="cat3">make art</label>
                 <textarea id="cat3" placeholder="Songs analyzed, beats made, songs written, projects mixed/mastered..."></textarea>
             </div>
             <div class="entry-group">
-                <label for="cat4">Take Care of Business</label>
+                <label for="cat4">take care of business</label>
                 <textarea id="cat4" placeholder="ras-cal social media, editing, submissions, planning, organizing...."></textarea>
             </div>
             <div class="entry-group">
@@ -131,10 +132,12 @@
                         <span class="toggle-option" id="fabYes">Yes</span>
                     </div>
                 </div>
-                <textarea id="cat5" placeholder="Closed sales, content posted, client meetings..." style="display:none;"></textarea>
+                <div class="fab-textarea-wrap" id="cat5Wrap">
+                    <textarea id="cat5" placeholder="Closed sales, content posted, client meetings..."></textarea>
+                </div>
             </div>
             <div class="entry-group">
-                <label for="cat6">The Wind-Down</label>
+                <label for="cat6">the wind-down</label>
                 <textarea id="cat6" placeholder="Listening to music, skincare, cold shower, reading...."></textarea>
             </div>
             <div class="footer-actions">
@@ -157,7 +160,7 @@
                 document.querySelector(".container").style.opacity = "1";
             }
 
-            updateFabUI();
+            updateFabUI(false);
 
             // Prime local textareas immediately before requesting remote data
             renderCurrentView(true);
@@ -216,7 +219,7 @@
                 }
             }
 
-            updateFabUI();
+            updateFabUI(!isInitialInstantPaint);
 
             // Only run animations on active page turns, not background refreshes
             if (!isInitialInstantPaint && typeof gsap !== "undefined") {
@@ -227,25 +230,70 @@
 
         function toggleFab(forceState) {
             fabState = (typeof forceState === "boolean") ? forceState : !fabState;
-            updateFabUI();
+            updateFabUI(true);
         }
 
-        function updateFabUI() {
+        // animate: whether to smoothly slide/fade the textarea open or closed
+        // (false is used for the very first instant paint, so nothing jumps around on load)
+        function updateFabUI(animate = true) {
             const highlight = document.getElementById("fabHighlight");
             const noEl = document.getElementById("fabNo");
             const yesEl = document.getElementById("fabYes");
-            const cat5 = document.getElementById("cat5");
 
             if (fabState) {
                 highlight.style.transform = "translateX(100%)";
                 yesEl.style.color = "#ffffff";
                 noEl.style.color = "#111111";
-                cat5.style.display = "block";
             } else {
                 highlight.style.transform = "translateX(0)";
                 noEl.style.color = "#ffffff";
                 yesEl.style.color = "#111111";
-                cat5.style.display = "none";
+            }
+
+            setFabTextareaVisibility(fabState, animate);
+        }
+
+        function setFabTextareaVisibility(show, animate) {
+            const wrap = document.getElementById("cat5Wrap");
+            const cat5 = document.getElementById("cat5");
+
+            // No-animation path: used on the very first instant paint
+            if (!animate || typeof gsap === "undefined") {
+                if (show) {
+                    wrap.style.height = "auto";
+                    wrap.style.opacity = "1";
+                    cat5.style.transform = "translateY(0)";
+                } else {
+                    wrap.style.height = "0px";
+                    wrap.style.opacity = "0";
+                }
+                return;
+            }
+
+            gsap.killTweensOf(wrap);
+            gsap.killTweensOf(cat5);
+
+            if (show) {
+                // Measure the natural height, collapse back to 0, then drop it open
+                wrap.style.height = "auto";
+                const targetHeight = wrap.offsetHeight;
+                wrap.style.height = "0px";
+                gsap.fromTo(wrap,
+                    { height: 0, opacity: 0 },
+                    {
+                        height: targetHeight, opacity: 1, duration: 0.55, ease: "power3.out",
+                        onComplete: () => { wrap.style.height = "auto"; }
+                    }
+                );
+                gsap.fromTo(cat5,
+                    { y: -14 },
+                    { y: 0, duration: 0.55, ease: "back.out(1.4)" }
+                );
+            } else {
+                const currentHeight = wrap.offsetHeight;
+                wrap.style.height = currentHeight + "px";
+                gsap.to(wrap, { height: 0, opacity: 0, duration: 0.35, ease: "power2.inOut" });
+                gsap.to(cat5, { y: -14, duration: 0.3, ease: "power2.in" });
             }
         }
 
@@ -254,9 +302,32 @@
         }
 
         function changeDay(offset) {
-            viewingDate.setDate(viewingDate.getDate() + offset);
-            calendarMonthView = new Date(viewingDate);
-            renderCurrentView();
+            const newDate = new Date(viewingDate);
+            newDate.setDate(newDate.getDate() + offset);
+            swapToDate(newDate);
+        }
+
+        // Quick fade-out/fade-in "refresh" flash whenever the viewed day changes
+        function swapToDate(newDate) {
+            const main = document.querySelector("main");
+
+            if (typeof gsap === "undefined") {
+                viewingDate = newDate;
+                calendarMonthView = new Date(viewingDate);
+                renderCurrentView();
+                return;
+            }
+
+            gsap.killTweensOf(main);
+            gsap.to(main, {
+                opacity: 0.25, duration: 0.12, ease: "power1.in",
+                onComplete: () => {
+                    viewingDate = newDate;
+                    calendarMonthView = new Date(viewingDate);
+                    renderCurrentView();
+                    gsap.to(main, { opacity: 1, duration: 0.22, ease: "power1.out" });
+                }
+            });
         }
 
         function toggleCalendar() {
@@ -311,7 +382,7 @@
                 if (formatKeyMatch(targetDate, viewingDate)) dayCell.classList.add("active");
                 if (allEntries.some(e => formatKeyMatch(e.date, targetDate))) dayCell.classList.add("has-entry");
 
-                dayCell.onclick = () => { viewingDate = targetDate; renderCurrentView(); toggleCalendar(); };
+                dayCell.onclick = () => { swapToDate(targetDate); toggleCalendar(); };
                 grid.appendChild(dayCell);
             }
         }

@@ -52,6 +52,31 @@
             resize: vertical; outline: none; transition: border-color 0.2s ease, background-color 0.2s ease;
         }
         textarea:focus { border-color: #111111; background-color: #ffffff; }
+
+        /* Fourth & Broadway toggle */
+        .toggle-row {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 16px; flex-wrap: wrap;
+        }
+        .toggle-label {
+            font-size: 1.2rem; font-weight: 600; margin-bottom: 0; flex: 1; min-width: 200px;
+        }
+        .toggle-switch {
+            position: relative; display: inline-flex; width: 130px; height: 38px;
+            border: 1px solid #111111; cursor: pointer; user-select: none; flex-shrink: 0;
+            background: #ffffff;
+        }
+        .toggle-highlight {
+            position: absolute; top: 0; left: 0; width: 50%; height: 100%;
+            background: #111111; transition: transform 0.3s ease; z-index: 1;
+        }
+        .toggle-option {
+            position: relative; z-index: 2; flex: 1; display: flex; align-items: center;
+            justify-content: center; font-family: inherit; font-size: 1rem; color: #111111;
+            transition: color 0.3s ease;
+        }
+        #cat5 { margin-top: 14px; }
+
         .footer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 35px; }
         button.primary-btn { background-color: #111111; color: #ffffff; border: none; font-family: inherit; font-size: 1.1rem; padding: 10px 30px; cursor: pointer; transition: background-color 0.2s ease; }
         button.primary-btn:hover { background-color: #333333; }
@@ -82,16 +107,35 @@
 
         <main>
             <div class="entry-group">
-                <label for="cat1">Work & Projects</label>
-                <textarea id="cat1" placeholder="Describe meaningful contributions..."></textarea>
+                <label for="cat1">Exercise</label>
+                <textarea id="cat1" placeholder="What you exercised, personal bests, how it's feeling..."></textarea>
             </div>
             <div class="entry-group">
-                <label for="cat2">Health & Vitality</label>
-                <textarea id="cat2" placeholder="Notes on movement, physical conditioning..."></textarea>
+                <label for="cat2">Nutrition</label>
+                <textarea id="cat2" placeholder="Reflecting on meals, snacks, healthy choices..."></textarea>
             </div>
             <div class="entry-group">
-                <label for="cat3">Mind & Leisures</label>
-                <textarea id="cat3" placeholder="Books read, reflections..."></textarea>
+                <label for="cat3">Make Art</label>
+                <textarea id="cat3" placeholder="Songs analyzed, beats made, songs written, projects mixed/mastered..."></textarea>
+            </div>
+            <div class="entry-group">
+                <label for="cat4">Take Care of Business</label>
+                <textarea id="cat4" placeholder="ras-cal social media, editing, submissions, planning, organizing...."></textarea>
+            </div>
+            <div class="entry-group">
+                <div class="toggle-row">
+                    <label class="toggle-label">did you work on fourth and broadway today?</label>
+                    <div class="toggle-switch" id="fabToggle" onclick="toggleFab()">
+                        <div class="toggle-highlight" id="fabHighlight"></div>
+                        <span class="toggle-option" id="fabNo">No</span>
+                        <span class="toggle-option" id="fabYes">Yes</span>
+                    </div>
+                </div>
+                <textarea id="cat5" placeholder="Closed sales, content posted, client meetings..." style="display:none;"></textarea>
+            </div>
+            <div class="entry-group">
+                <label for="cat6">The Wind-Down</label>
+                <textarea id="cat6" placeholder="Listening to music, skincare, cold shower, reading...."></textarea>
             </div>
             <div class="footer-actions">
                 <div id="status"></div>
@@ -103,6 +147,7 @@
     <script>
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXGmCkiGNy_5lqwp8s_zWxTr9b50XvcPzgq9erkwo1beJtUNpxVlZQjeTjMos1nksgSQ/exec";
         let allEntries = [], viewingDate = new Date(), calendarMonthView = new Date();
+        let fabState = false; // false = "No" (cat5 hidden/blank), true = "Yes" (cat5 shown)
 
         // Optimized Launch Sequence: Paint the canvas instantly
         window.addEventListener("DOMContentLoaded", () => {
@@ -111,10 +156,12 @@
             } else {
                 document.querySelector(".container").style.opacity = "1";
             }
-            
+
+            updateFabUI();
+
             // Prime local textareas immediately before requesting remote data
-            renderCurrentView(true); 
-            
+            renderCurrentView(true);
+
             // Dispatch cloud sync to a non-blocking background network thread
             fetchEntriesInBackground();
         });
@@ -123,11 +170,11 @@
         async function fetchEntriesInBackground() {
             const status = document.getElementById("status");
             status.innerText = "Syncing with cloud log...";
-            
+
             try {
                 const res = await fetch(SCRIPT_URL);
                 allEntries = await res.json();
-                
+
                 // Merge data seamlessly once the stream finishes loading
                 renderCurrentView(false);
             } catch (err) {
@@ -148,12 +195,20 @@
                 document.getElementById("cat1").value = match.cat1 || "";
                 document.getElementById("cat2").value = match.cat2 || "";
                 document.getElementById("cat3").value = match.cat3 || "";
+                document.getElementById("cat4").value = match.cat4 || "";
+                document.getElementById("cat5").value = match.cat5 || "";
+                document.getElementById("cat6").value = match.cat6 || "";
+                fabState = !!(match.cat5 && String(match.cat5).trim() !== "");
                 status.innerText = "Viewing archived log.";
             } else {
                 document.getElementById("cat1").value = "";
                 document.getElementById("cat2").value = "";
                 document.getElementById("cat3").value = "";
-                
+                document.getElementById("cat4").value = "";
+                document.getElementById("cat5").value = "";
+                document.getElementById("cat6").value = "";
+                fabState = false;
+
                 if (isInitialInstantPaint) {
                     status.innerText = "Ready.";
                 } else {
@@ -161,11 +216,37 @@
                 }
             }
 
+            updateFabUI();
+
             // Only run animations on active page turns, not background refreshes
             if (!isInitialInstantPaint && typeof gsap !== "undefined") {
                 gsap.fromTo("textarea", { opacity: 0.6 }, { opacity: 1, duration: 0.3 });
             }
             renderGridCalendar();
+        }
+
+        function toggleFab(forceState) {
+            fabState = (typeof forceState === "boolean") ? forceState : !fabState;
+            updateFabUI();
+        }
+
+        function updateFabUI() {
+            const highlight = document.getElementById("fabHighlight");
+            const noEl = document.getElementById("fabNo");
+            const yesEl = document.getElementById("fabYes");
+            const cat5 = document.getElementById("cat5");
+
+            if (fabState) {
+                highlight.style.transform = "translateX(100%)";
+                yesEl.style.color = "#ffffff";
+                noEl.style.color = "#111111";
+                cat5.style.display = "block";
+            } else {
+                highlight.style.transform = "translateX(0)";
+                noEl.style.color = "#ffffff";
+                yesEl.style.color = "#111111";
+                cat5.style.display = "none";
+            }
         }
 
         function formatKeyMatch(d1, d2) {
@@ -226,7 +307,7 @@
                 const dayCell = document.createElement("div");
                 dayCell.className = "cal-day"; dayCell.innerText = day;
                 const targetDate = new Date(year, month, day);
-                
+
                 if (formatKeyMatch(targetDate, viewingDate)) dayCell.classList.add("active");
                 if (allEntries.some(e => formatKeyMatch(e.date, targetDate))) dayCell.classList.add("has-entry");
 
@@ -242,16 +323,23 @@
 
         async function saveData() {
             const status = document.getElementById("status"), submitBtn = document.getElementById("submitBtn");
-            const cat1 = document.getElementById("cat1").value.trim(), cat2 = document.getElementById("cat2").value.trim(), cat3 = document.getElementById("cat3").value.trim();
+            const cat1 = document.getElementById("cat1").value.trim();
+            const cat2 = document.getElementById("cat2").value.trim();
+            const cat3 = document.getElementById("cat3").value.trim();
+            const cat4 = document.getElementById("cat4").value.trim();
+            // If the toggle is "No", the fourth-and-broadway field is wiped on submission
+            // regardless of any lingering text in the hidden textarea.
+            const cat5 = fabState ? document.getElementById("cat5").value.trim() : "";
+            const cat6 = document.getElementById("cat6").value.trim();
 
-            if (!cat1 && !cat2 && !cat3) {
+            if (!cat1 && !cat2 && !cat3 && !cat4 && !cat5 && !cat6) {
                 status.style.color = "#b22222"; status.innerText = "The entry cannot be entirely empty."; return;
             }
             status.style.color = "#666666"; status.innerText = "Recording..."; submitBtn.disabled = true;
             try {
                 await fetch(SCRIPT_URL, {
                     method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ cat1, cat2, cat3, date: viewingDate.toISOString() })
+                    body: JSON.stringify({ cat1, cat2, cat3, cat4, cat5, cat6, date: viewingDate.toISOString() })
                 });
                 status.style.color = "#006400"; status.innerText = "Entry logged successfully.";
                 fetchEntriesInBackground(); // Silently refresh the storage map
